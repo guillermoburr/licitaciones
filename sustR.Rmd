@@ -1,0 +1,498 @@
+---
+title: \textsc{Concept Note \\ }  \textbf{\textcolor[rgb]{0,0.6,0}{Public Procurement (PP) and Sustainability} \\ \textcolor[rgb]{0.9,0.1,0.1}{A Plea for Simplicity}\footnote{This note was stimulated by a conversation with Kathrin Frauscher and Gavin Hayman of OCP, but does not represent their thoughts on the subject matter. Any errors or misconceptions must only be attributed to the author.}}
+# subtitle: A Plea for Simplicity
+author: "**Guillermo Burr Ortúzar**"
+date: "June 21, 2021" 
+journal: "AER"
+output: pdf_document
+
+header-includes:
+# - \usepackage{color}
+# title: \textcolor{blue}{This text is blue}
+- \usepackage[utf8]{inputenc}
+- \usepackage{graphicx}
+- \graphicspath{{imagen/}}
+- \usepackage[most]{tcolorbox}
+- \usepackage{tikz}
+- \usepackage{pgfplots} % para graficar
+
+- \usepackage{pgfplots} % para graficar 
+- \usepackage{tikz} % diagrama
+- \usepackage{framed, color}
+
+- \bibliographystyle{apalike}
+- \usepackage{fullpage}
+
+- \definecolor{shadecolor}{rgb}{0.4, 0.7, 0.9}
+
+- \usepackage{multirow}
+- \usepackage{caption}
+
+- \usepackage{url}
+- \usepackage{pgfornament}
+
+- \usetikzlibrary{calc}
+- \usetikzlibrary{arrows.meta}
+
+- \setcounter{section}{-1}
+
+- \AtBeginEnvironment{quote}{\singlespace\vspace{-\topsep}\small}
+- \AtEndEnvironment{quote}{\vspace{-\topsep}\endsinglespace}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(rjson)
+library(tidyverse)
+library(RCurl)
+library(knitr)
+library(xtable)
+library(kableExtra)
+library(formattable)
+library(treemap)
+library(stringr)
+library(gridExtra)
+library(broom)
+library(RODBC)
+library(readxl)
+library(forecast)
+library(janitor)
+con <- odbcConnect("parar")
+
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
+# data
+
+# data from my github account:
+
+lic_2018 <- read.csv2('https://raw.githubusercontent.com/guillermoburr/licitaciones/main/2018.csv')
+lic_2019 <- read.csv2('https://raw.githubusercontent.com/guillermoburr/licitaciones/main/2019.csv')
+
+licitaciones <- dplyr::bind_rows(lic_2018, lic_2019)
+# data wrangling; NB: I had NULL on price (which is not possible), so I'm deleting it
+licitaciones$fechaadjudicacion <- as.Date(licitaciones$fechaadjudicacion)
+licitaciones <- licitaciones %>% dplyr::mutate(.,porc_precio=if_else(Porcentaje %in% c('Anexo n?3)"','Anexo n?2)"'), '40', Porcentaje))
+licitaciones <- licitaciones %>% dplyr::mutate(.,reclamo_cant=if_else(NroReclamos %in% c('NULL'), '0', NroReclamos))
+licitaciones <- licitaciones %>% dplyr::mutate(.,reclamo_dummy=if_else(reclamo_cant>=1, '1', '0'))
+licitaciones <- licitaciones %>% dplyr::mutate(.,precio_plot=case_when(
+
+  porc_precio %in% c(1:10) ~ '1-10',
+  porc_precio %in% c(11:20) ~ '11-20',
+  porc_precio %in% c(21:30) ~ '21-30',
+  porc_precio %in% c(31:40) ~ '31-40',
+  porc_precio %in% c(41:50) ~ '41-50',
+  porc_precio %in% c(51:60) ~ '51-60',
+  porc_precio %in% c(61:70) ~ '61-70',
+  porc_precio %in% c(71:80) ~ '71-80',
+  porc_precio %in% c(81:90) ~ '81-90',
+  porc_precio %in% c(91:100) ~ '91-99'
+
+  ))
+licitaciones$porc_precio <- as.integer(licitaciones$porc_precio)
+licitaciones$reclamo_cant <- as.integer(licitaciones$reclamo_cant)
+
+# exclute tender of framework agreements
+licitaciones <- dplyr::filter(licitaciones, !grepl('2239-', numeroLicitacion))
+
+```
+
+
+
+
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
+
+\textcolor[rgb]{0.9,0.1,0.1}{\textsc{Disclaimer 1}}: It is my conviction that we (humanity) face a real existential threat as a consequence of climate change and over exploitation of natural resources and ecosystems . . .,\\
+\textcolor[rgb]{0.9,0.1,0.1}{\textsc{But}} at the same time, it is my belief that (a) introducing sustainability (economic, social and environmental) in PP could lead to unintended consequences, such as the loss of trust in the public sector by the general public and the worsening business climate for companies, and (b) it is not necessary to introduce sustainability in PP in order to be sustainable . . .,\\
+\textcolor[rgb]{0.9,0.1,0.1}{\textsc{Why?}} Explaining why it is so, is the focus of this brief note.\\
+
+\textcolor[rgb]{0.9,0.1,0.1}{\textsc{Disclaimer 2}}: Much of what I expose here is based on my firsthand knowledge of public procurement in developing countries, specially from Chile. To what extent this experience is applicable to developed economies is a question that is beyond the present text.\\
+
+\textcolor[rgb]{0.9,0.1,0.1}{\textsc{Disclaimer 3}}: This text is far from complete.\\
+
+\end{tcolorbox}
+
+\tableofcontents
+
+\newpage
+
+\section{My argument}
+
+To add sustainability to PP, it might require to add complexity to PP system, leading to: 
+\begin{itemize}
+\item[i.-] a less accountable PP system to the general public (more difficult for them to understand), 
+\item[ii.-]  a PP with \textit{market dynamics} different from that of the private market (hence, difficult to understand by regular businesses).
+\end{itemize}
+
+As a consequence \textsc{Trust} is diminished in PP, and by transitivity --or by extrapolation--,  \textsc{Trust} in the public sector is endangered.
+
+\textbf{Possible exceptions:} when sustainability is applied to monopsonic markets and/or applied to complex procurement (not involving \textit{commercial items}\footnote{“Commercial item means. (1) Any item, other than real property, that is of a type customarily used by the general public or by non-governmental entities for purposes other than governmental purposes, and- (i) Has been sold, leased, or licensed to the general public; [...]” See \textit{Federal Adquisition Regulations}, $\S$ 2.101. }), since it is difficult to estimate counterfactuals of prices.
+
+\section{My argument, in a simplified visual way}
+
+\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black]
+
+Besides {statu quo}, a PP system can follow one of two paths:\\
+
+\vspace{0.05cm}
+
+\textbf{Path 1:} $\uparrow$Rules $\rightarrow$ $\uparrow$Complexity $\rightarrow$ $\downarrow$Accountability $\Rightarrow$ $\downarrow$Trust\footnote{Example 1: Supplier: "This is a 'tailor-made' tender" Me: "What makes you think that?" Supplier: "The little room given to price implies friendship between the buyer and the supplier who was awarded".}, \footnote{Example 2: Me: "Why did you say there's no transparency in PP?" Supplier: "Currently many tenders are resolved by other criteria, unrelated to price, [like] quality, sustainability and experience".}, \footnote{Example 3 [new supplier]: Supplier: "The tender was 'rigged'" Me: "How did you know?" Supplier: "Our proposal was the one with the lower price, and [yet] we were not awarded". Note: the tender document gave 10\% (out of 100\%) to price.} \\
+
+\vspace{0.05cm}
+
+\textbf{Path 2:} $\downarrow$Rules $\rightarrow$ $\downarrow$Complexity  $\rightarrow$ $\uparrow$Accountability $\Rightarrow$ $\uparrow$Trust\\
+\begin{scriptsize}
+Being: '$\uparrow$' = increase, '$\downarrow$' = decrease, '$\rightarrow$' = leads to, '$\Rightarrow$' = has the consequence. \\
+\end{scriptsize}
+\vspace{0.05cm}
+
+
+
+\textbf{Assumption:} Introducing Sustainability in PP leads to a higher complexity of PP Rules.
+
+\end{tcolorbox}
+
+\section*{The concept of Sustainability}
+
+The concept of sustainability used for this document is the triple meaning, namely, social, environmental and economical sustainability. Hence Sustainable PP is the action of balancing economic, social and environmental objectives 
+<!-- [\textsc{Note for me}: \textcolor{red}{this needs a more detailed explanation.}] -->
+
+\section*{Interviews, Data and this document (RMarkdown)}
+
+The interviews' verbatim came from my Master's Thesis in Public Policy.
+
+The static version of this RMarkdown and the data used in this document can be found here: \url{https://github.com/guillermoburr/licitaciones}
+
+\begin{center}
+%\newpgfornamentfamily{pgfhan}
+\pgfornament[width = 4cm]{84}
+\end{center}
+
+\newpage
+
+
+\section{Arguments against introduction of sustanable PP}
+
+<!-- [\textsc{Note for me:} these arguments are still all interconnected; can be redundant instead of exclusive in the pursuit of exhaustiveness] -->
+
+\subsection*{Introduction of New Rules}
+
+The first potential danger of sustainable PP is introducing a new set of rules, rules that only exist in the realm of PP. I think it is clear that to the extent that the public procurement market has different rules from the national market of a country, the further it moves away from the usual commercial rules, the more entry barriers exist for non-specialized actors who challenge the usual suppliers (incumbent suppliers).
+
+\subsection*{Altering the supply side of PP}
+
+The idea behind this is that when governments request sustainability, the supply side of goods and services will eventually change. Nevertheless there is evidence that's not necessarily the case. For example, when Steven Kelman stated out his surprise on the fact  that the most succeful ICT suppliers in the 'open' market in the US where not the most successful suppliers in the governmental market administered by GSA, although they provide very similar services.\footnote{Yet IBM's market share in the federal government is considerably 	lower than its share in Fortune 1000 companies-34 percent in government versus 76 percent in Fortune 1000 companies. By contrast, some smaller vendors (most dramatically Unisys, with an 11 percent government share versus a 3 percent Fortune 1000 share and the IBMcompatible mainframe vendor Amdahl, with a 13 percent federal market share compared with 5 percent in the Fortune 1000 world) are overrepresented in government. Whatever the incidence of "sweetheart deals" and "lazy" decisions in the federal government (if indeed that is a correct description of such arrangements), it appears to be less than in the private sector. (p. 16)} So, the rules of government just created a lateral market (a smaller one), and doesn't changed the landscape of the private sector. 
+
+My experience with framework agreements in Chile  also leads me to conclude that the "special" rules have only favored the creation of lateral markets: the most successful providers are those capable of navigating rules, and not necessarily the most efficient or effective\footnote{In fact, a market of awarded suppliers emerged to lease space in the market and/or to sell a place on it.}. This increases the risk of capture and make these markets difficult to monitor and control\footnote{Control becomes much more difficult when contract are assigned using complex rules instead of just price. There are several reasons: it is difficult to find counterfactual of prices (since you cannot find simmilar products in the market), it is difficult to apply red flags (since high prices are not an abnormaly anymore), etc.}.
+
+This favor cronyism and disconnection of the government with private sector, entering into the vicious circle of: \textcolor{red}{cronyism $\rightarrow$ more rules $\rightarrow$ ... $\rightarrow$ ... $\Rightarrow$ less trust}.
+
+In case of monopsony market I think there's no doubt that government can advance whatever measures they want, including SPP, with smaller risk in this respect.
+
+Nevertheless, there are cases whem a small proportion of buyers/clients can shape the whole landscape of an entire market. That's the case with food industry in United States and kosher culture: although religious jewish represent less than 2% of the population in the US \footnote{\url{https://www.pewforum.org/2021/05/11/the-size-of-the-u-s-jewish-population/}}, the existence of this sufficiently intransigent group has achieved that 100% of the population ended up consuming kosher Coca Cola\footnote{\url{https://www.insider.com/why-do-coke-bottles-have-yellow-caps-2017-4}} but this is (surely) due to the fact that the marginal costs of adding this measure is affordable by all consumers, which may or may not be the case in sustainable procurement. Trusting that this situation will be the majority or even frequent is an hypothesis that deserves to be studied (I do not know if it has been tested yet).
+
+\subsection*{Price: the simplest way to watch}
+
+How can the general public observe the functioning of the public procurement system? Probably the general public can only assess the functioning of a PP system using certain clues, and price is an outstanding clue (prices of commercial items).
+
+For better or for worse, price is a very relevant factor in determining whether market is rigged or not, since one traditional way to arrange thing between a procurer and a supplier is to overprice for a good or service, and the other one is to lower the quality. Although reducing the quality might be less visible, it also can entail a higher degree of felony (f. i., lower the quality of a bridge, entails both the bribe plus any civil damage caused by failing of the infrastructure).
+
+Research done in Montenegro\footnote{\url{http://media.institut-alternativa.org/2020/05/Istra\%C5\%BEivanje-javnog-mnjenja-nabavke-2020-eng.pdf}} shows that regular citizens are rarely aware of the existence of something called “Public Procurement”, since 71\% of them does not know what PP is about. I'm not aware of similar statistics from other countries, but I think the majority of counties of South America will probably be close to that ratio. The direct consequence of this lack of awareness is that any attempt to justify procurement procedures and regulations beyond the usual rules, could cause mistrust in the majority of population.
+
+\newpage
+
+
+\section{Annex A: Conceptual Frameworks}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black]
+
+The idea of the following section is: 1) convince the reader that there is a category of non-tradable/negotiable objectives or that they are at least non-tradable below a certain threshold (basic attributes) 2) show the risks of procurement using MEAT in terms of achieving reasonable or competitive prices. \\
+
+It is common to hear statements similar to the following:\\
+
+\textcolor[rgb]{0.9,0.1,0.1}{\textsc{Efficiency is just one public priority/objective and must be balanced against others.}} \\
+
+Let's understand by \textit{balancing}, the trade-offs between different attributes, namely, further achievement in one objective is done at the expense of the achievement on the other, then \textbf{what if there are some priorities that cannot be “balanced” in PP?} One obvious case is \textit{Integrity}: I think it's not acceptable to say “in order to be more efficient, I had to sacrifice my \textit{Intregrity}”\footnote{I always remember Kant's dictum: All actions that refer to the rights of other men, whose principles can't stand being published, are unjust.}. Then, \textit{Intregrity} looks closer to a restriction, that is, an attribute that is not negotiable; hence \textit{Intregrity} cannot be “balanced”. 
+
+\end{tcolorbox}
+
+\newpage
+
+\subsection*{Sustainability in PP through the use of MEAT criteria}
+
+Although sustainability has a reach far beyond awarding criteria, certainly awarding criteria are an important way to implement sustainability in procurement, and actually the use of MEAT is usually associated with sustainability. 
+In this context, MEAT (most economically advantageous tender)\footnote{See \url{https://ec.europa.eu/docsroom/documents/26130/attachments/6/translations/en/renditions/native}} criteria means the use of several criteria to choose between different suppliers. Typically it operates by giving price (P) a weight ($\alpha$) and other factors different from price ($P^{*}$) with a weight  $(1-\alpha)$. 
+
+We can plot the indifference curves of the Procurer using MEAT in the following way (\textbf{NB:} this is a little bit different from usual representation of indifference curves of consumers in microeconomic textbooks):
+
+\begin{figure}[h!]
+\begin{center}	
+\begin{tikzpicture}[scale=.7]
+\draw [->] (0,8) node [left] {$\overline{P}$} -- (0,0) -- (8.2,0) node [below right] {$\overline{P^{*}}$};
+<!-- \draw [->] (0,8) node [left] {$\overline{P}$}; -->
+<!-- \draw [->] (8.2,0) node [below right] {$\overline{P^{*}}$};	 -->
+\node [left] at (0,5) { $p_{1}$};
+			
+\node [right] at (4,4) {C1};
+\node [right] at (3.1,3.1) {C2};
+\node [right] at (1.7,1.7) {C3};
+<!-- %			\node [right] at (5,5) {\tiny $m =\left(\dfrac{\alpha}{(1-\alpha)}\right)$}; -->
+<!-- %			 -->
+			
+			
+<!-- isogustos del comprador -->
+\draw (0,6.1)--(5.75,0);
+\draw (0,3.1)--(2.875,0);
+\draw (0,7.93)--(7.475,0);
+\draw [red, dashed, very thick] (0,5)--(8.2,5);
+\draw [blue, thick] (0,0)--(7,7);
+			
+\end{tikzpicture}
+			
+\caption{Indifference Curves of the Procurers for a typical procedure using MEAT criteria of the form $\alpha P + (1-\alpha)P^{*}$. As usual in indifference curves, it is implied that \textsc{C1 > C2 > C3}, '>' = preferred.}
+\end{center}	
+\end{figure}
+
+Where the Y axis labeled with $\overline{P}$ represents the score obtained in the \textsc{price} criterion, the X axis represents the score obtained by bidders in all other criteria different from \textsc{price}, which I labeled as $\overline{P^{*}}$. The blue line represents the point in which the bid has equal score in price and in non-price criteria; and the red dashed line is an external price reference (external to the tender).
+
+What's the problem?
+
+\begin{itemize}
+\item One basic problem: Procurers are seldom aware of the marginal rate of substitution between different criteria, which is the same to say that many tenders are just a random pick over weighting of different criteria. This is confirmed even in developed countries like Norway where "a given weight of 30\%" for \textbf{whatever to be procured (!)}, is recommended (see  Norway's application of MAPS SPP module).
+\item If you award using MEAT, it is perfectly possible that you will end up awarding a bidder with a lower price-quality ratio compared to other of the same tender (!), which implies that per additional unit of quality you would be paying in excess.
+\item It is quite clear that if there is a supplier with a price p1 in a quality that places it at the intersection with C2, it will not be awarded due to other considerations (environmental, social ...) of suppliers that are, for example, on the C1 indifference curve at prices higher than p1 (that is, on the graph below the line p1).
+\end{itemize}
+
+\subsection*{The argument of costs versus prices}
+
+One frequent question is: are sustainable products and services more expensive?\footnote{By the way, recent research shows significant differences in retail prices: \url{https://www.nl.kearney.com/consumer-retail/article/?/a/why-todays-pricing-is-sabotaging-sustainability}}
+
+An usually the answer to such a question is: "not if you consider all relevant costs"
+
+This statement conflates two different issues: prices (expensive) and costs. Prices (expensive or not) are not equal to costs in an open market (that's the whole case with externalities). The citation tackles an argument of prices based on costs, hence, it does not  correctly address the problem, since it responds to the problem (expensive prices) with a different issue (costs).
+
+The following statement is not problematic since "price of utilities" for the general public, are bills of utilities services, and the promise is that by using GPP yo can reduce prices (bills): "GPP may also provide financial savings for public authorities – especially if you consider the full life-cycle costs of a contract and not just the purchase price. Purchasing energy-efficient or water-saving products for example, can help to significantly reduce utility bills. Reducing hazardous substances in products can cut disposal costs. Authorities who implement GPP will be better equipped to meet evolving environmental challenges, for example to reduce greenhouse gas emissions or move towards a more circular economy".\footnote{European Commission, Buying green!
+A handbook on green public procurement, 3rd Edition, 2016. P. 5. \url{https://ec.europa.eu/environment/gpp/pdf/Buying-Green-Handbook-3rd-Edition.pdf}}. 
+
+If we limit sustainable PP to this last type of cases, then sustainability is not capable of cause a trust problem. But, how can we find or design more of these cases?
+
+
+
+
+
+\subsection*{Value for Money}
+
+<!-- This term has been in use since a long time ago in the realm of projects, but apparently its use is relatively recent in the PP community.  -->
+It is well know as a definition of the 3 E's: Economy, Efficiency and Efficacy. 
+Conceptually, one can express the ideas of VFM sketched above by using the following identity:
+
+\begin{center}
+$VFM\equiv$ $[$ $\underbrace{(Economy + Efficiency)}_{\textbf{A}}\times \underbrace{Efficacy}_{\textbf{B}}$ $-$ $Costs ] $
+\end{center}
+
+Qualitatively speaking, if there is no efficacy (B=0) then there's no value for money  (VFM = 0), which is equivalent to say that the procurement was just a waste of resources (time, money, ...). An obvious example can be vaccines: if the COVID vaccines procured by a government don't work (B=0) then the procurement was just a waste of money (pure costs).
+
+Why I did model VFM in that way? Because the COVID Pandemic has teach us how important is price even in the face of a global threat: for example in Chile, the Supreme Audit Institution (Contraloría General de la República) opened an investigation concerning the procurement of food aid that were purchased during the lockdowns in which price differences were found with retailers that did not exceed 10\%\footnote{\url{https://www.latercera.com/la-tercera-pm/noticia/cajas-de-alimentos-contraloria-examina-contratos-en-todo-chile-y-fiscalia-de-arica-abre-causa-por-presuntas-irregularidades/JPD4LYZZNRHLPNBWOUCRCR7EQM/}} which was enough to bring down several important authorities. This mean that economy and efficiency (A) can also cause VFM to be 0. 
+
+\newpage 
+
+\subsection*{The Kano Model}	
+
+To help us understand why perceptions about a PP system can have non-tradable aspects, we can turn our attention to the well-known (in marketing) Kano model, which is represented by the following figure (see especially Basic attributes): 
+
+\begin{figure}
+\begin{tikzpicture}
+	\coordinate (Q) at (0,0);
+	
+	\draw[arrows=-Stealth,line width=0.7mm,purple]
+	(Q) ++ (-2in,0) node [anchor=east,align=center,text width=0.75in]
+	{Not~fulfilled}
+	-- 
+	++ (4in,0)  node [anchor=west,align=center,text width=0.75in]
+	{Well~fulfilled};
+	\draw[arrows=-Stealth,line width=0.7mm, purple]
+	(Q) ++ (0,-2in) node [anchor=north,align=center,text width=0.75in]
+	{Dissatisfied with PP}
+	-- 
+	++ (0,4in)  node [anchor=south,align=center,text width=0.75in]
+	{Satisfied with PP};
+	
+	\draw[blue,text=blue] 
+	(Q) ++ (-2in,-2in) 
+	-- 
+	++ (4in,4in) node[pos=0.75,anchor=north west] {Performance (linear)};
+	
+	
+	\draw[red,text=red] 
+	(Q) ++ (-2in,0.25cm) .. controls (-0.5cm,0.25cm) and
+	( 0.5cm,1.00cm)
+	..            
+	(1.25in,2in)
+	node[pos=0.95,anchor=south east] {Excitement};
+	
+	
+	\draw[red,text=red]
+	(Q) ++ (-1.25in,-2in) .. controls (-0.5cm,-1.00cm) and
+	( 0.5cm,-0.45cm)
+	..
+	(2in,-0.5cm)
+	node[pos=0.80,anchor=north west] {Basic};
+	
+	
+\end{tikzpicture}
+\caption{Depiction of Kano Model and different Attributes}
+\end{figure}
+
+
+Explanation of the plot: according to this framework, we have 3 different types of attributes in every service, with very different behavior regarding the satisfaction or dissatisfaction they can produce: \textsc{Linear} (more is better, less is worse), \textsc{Excitement} (less is neutral, more is much more better), and \textsc{Basic} which is explained as follows: “Simply stated, these are the requirements that the customers expect and are taken for granted. When done well, customers are just neutral, but when done poorly, customers are very dissatisfied. Kano originally called these “Must-be’s” because they are the requirements that must be included [in order to avoid dissatisfaction]” (Wikipedia). 
+
+\textbf{I think price is a basic attribute in this sense: if price attribute is not meet, then the customer/citizen dissatisfied. Nevertheless, basic attributes are tricky, since they do not cause satisfaction; instead, they can be a cause of dissatisfaction} (this is a serious trap for the public policy design). 
+
+\textbf{What are the implications for our discussion?} If \textsc{price} is a basic attribute (as I hypothesize it is) then it is not a "negotiable" attribute, meaning that it cannot be "balanced", implying that they cannot be diminished at the risk of causing dissatisfaction on the part of the citizenry. 
+
+
+\subsection*{What Job Would Citizens Want a Public Procurement System To Do?}
+
+Customers hire products and services to do specific jobs\footnote{Clayton Christensen \& Michael Raynor, The Innovator's Solution, Harvard Bussiness School Press. 2003}. 
+
+What Job Would Citizens Want to Hire a Public Procurement System To Do? Are they really hiring the PP system to change the landscape of the supply side or to introduce SPP, or maybe negative objectives like: no bribery, etc. Or maybe a combination of all that: but remember (from Kano's model) \textbf{a satisfying combination isn't just a few drops of each of these things}.
+
+How can we explore an answer to this question? Bare in mind that specific task does not mean a unique task: a specific task for a coffee might be to "keep me awake" & "at a reasonable price" & "in a convenient container for a travel in my car to a formal meeting". A simile for a PP could be: 
+"do good things (e.g., SPP)" & "without making me think that something odd is happening" because "I don't want to be an expert in PP" or "I don't want to spend time understanding the intricacies of PP".   
+
+
+\newpage
+
+\section{Annex B: Quantitative analysis of chilean PP data}
+
+<!-- [This is a first attempt to empirically test some of the concepts outlined in this document, but certainly it requires further refinement.] -->
+
+“In principle the use of multiple criteria—even with a well-specified scoring
+formula—is not desirable, because it tends to lack transparency and is
+very susceptible to manipulation, corruption, and the contesting of the
+award by the losers, inducing delays and protracted conflict. [...] the
+use of a single criterion should be the norm [...].”\footnote{J. Luis Guasch, \textit{Granting and Renegotiating
+Infrastructure Concessions}, Doing it Right, The World Bank, 1998, p.98.} 
+<!-- The correlations stated in the text cited above are the result of the econometric tests carried out by Guasch (see op. cit. pages 165 and following, especially Table A3.1). -->
+
+ \textbf{I'm going to test only one of the variables of the statement: the correlation between the use of MEAT and 'the contesting of the award by the losers'} using the data of complains of each awarded tender from Mercado Público (Chile). Why? Because sustainable PP is usually done by awarding criteria\footnote{"A specific provision encourages setting the weighting of the award criterion “environment” at 30\%, if used", MAPS SUSTAINABLE PUBLIC
+PROCUREMENTIN NORWAY, 2020, p.13.} in the form of scoring rules.
+
+First, let's take a glance over the data:
+
+```{r  message=FALSE, warning=FALSE, echo=FALSE, fig.height = 2.5}
+ggplot(data=licitaciones[!licitaciones$Porcentaje %in% c('NULL'),], 
+  aes(x=precio_plot, fill=reclamo_dummy)) +
+  geom_bar(stat="count") +
+  xlab("Weight of price") + 
+  ylab("Number of tenders\n (years 2018-2019)") + 
+  labs(fill = "Contested \n (1=Yes)") +
+  theme(text = element_text(size = 8), legend.text = element_text(size = 5)) +
+  # theme(legend.position = c(5, 2000)) +
+  scale_fill_brewer(palette="Paired")
+```
+
+Since it's difficult to appreciate differences in each group in a plot, it might be better to see the same data in the following table:
+
+```{r message=FALSE, warning=FALSE, echo=FALSE, fig.height = 6, fig.width = 7}
+dplyr::inner_join(
+(licitaciones[!licitaciones$Porcentaje %in% c('NULL'),] %>% 
+  dplyr::group_by(reclamo_dummy, precio_plot) %>% 
+  dplyr::summarise(.,Number=n()) %>% spread(reclamo_dummy, Number)), 
+(licitaciones[!licitaciones$Porcentaje %in% c('NULL'),] %>% 
+   dplyr::group_by(reclamo_dummy, precio_plot) %>% 
+   dplyr::summarise(.,Number=n()) %>% spread(reclamo_dummy, Number) %>% 
+   adorn_percentages(., denominator = "row")), by = 'precio_plot') %>% 
+  
+  kable(col.names = c("Price's \\\\ weight",
+                           "Not Contested",
+                           "Contested",
+                           "Not Contested",
+                      "Contested"), booktabs = T, 
+                  escape = FALSE) %>%
+  kable_paper("hover", full_width = F) %>% 
+  kable_styling(latex_options = c("striped", "hold_position")) %>% 
+  add_header_above(c(" ", "Quantity" = 2, "Proportion" = 2)) %>% 
+  # footnote(general = ("Contested: At least 1 or more complains"))
+  footnote(general = c("\\\\begin{scriptsize}Contested: 1 or more complains.\\\\end{scriptsize}"
+                     
+                      ),
+           footnote_as_chunk = T ,
+           escape = F)
+```
+
+These descriptive results show a blatant relationship between the weight given to price and the proportion of tenders that were contested: the less weight given to price in a tender, the higher the probability (relative frequency) of being contested.
+
+Model specification: I will use a multinomial logistic regression with a linear predictor function `f(k,i)`  to predict the probability that tender i has outcome k (contested):
+
+\begin{center}
+$f(k,i)=\beta_{0,k}+\beta_{1,k}X_{price,i}+\beta_{2,k}X_{biddings,i} +\beta_{3,k}X_{amount,i}$
+\end{center}
+
+Where $X_{price}$ is the weight of price in tender $i$ which is a continuum from 1 to 99\footnote{Every tender must include the price criterium in Chile, but is not possible to assign the tender only based on price.}, $X_{biddings}$ is the number of biddings to the tender $i$ and $X_{amount}$ is a control of the amount of the tender.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
+# logistic regression
+library(aod)
+m1 <- glm(as.numeric(reclamo_dummy)~porc_precio + NroOfertas,
+          data = licitaciones[!licitaciones$Porcentaje %in% c('NULL'),], family = "binomial")
+m2 <- glm(as.numeric(reclamo_dummy)~porc_precio + NroOfertas + tipolicitacion ,
+          data = licitaciones[!licitaciones$Porcentaje %in% c('NULL'),], family = "binomial")
+
+# # confidence intervals
+m2_CI <- confint(m2)
+m2_CI <- m2_CI[1:3,]
+
+rownames(m2_CI) <- c()
+
+```
+
+The results of two basic models are shown in the following table. M1 is the model with $X_{price}$ and $X_{biddings}$ and M2 is M1 plus $X_{amount}$:
+
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE, fig.height = 6, fig.width = 7}
+
+Results <- c("Intercept", "Price", "Biddings")
+table_M1 <- c(m1[["coefficients"]][["(Intercept)"]], m1[["coefficients"]][["porc_precio"]], m1[["coefficients"]][["NroOfertas"]])
+table_M2 <- c(m2[["coefficients"]][["(Intercept)"]], m2[["coefficients"]][["porc_precio"]], m2[["coefficients"]][["NroOfertas"]])
+
+tablita <- dplyr::bind_cols(as.data.frame(dplyr::bind_cols(Results, table_M1, table_M2)),as.data.frame(m2_CI))
+
+kable(tablita, col.names = c("Parameters",
+                           "Point estimation",
+                           "Point estimation", "2.5\\%", "97.5\\%"), booktabs = T,
+escape = FALSE) %>%
+  kable_paper("hover", full_width = F) %>%
+  kable_styling(latex_options = c("striped", "hold_position")) %>%
+  add_header_above(c(" " = 1, "M1"=1, "M2"=1, "M2 Confidence Intervals" = 2))
+
+```
+
+
+
+\textsc{Interpretation:} Let's review two polar cases using the parameters of M2. One in which the idea of MEAT was implemented (price was given a 10\% weight out of 100\%) and the other one in which price was almost the sole factor (price was given a 90\% weight), which can be interpreted as NOT MEAT\footnote{Estimation using: $$\frac{1}{1+\exp-(\beta_0 + \beta X_i)}$$}:
+
+\begin{itemize}
+\item Price weighted 10\% [MEAT]: the probability of a tender being contested under this scenario is `r ((1/(1 + exp(-1*(m2[["coefficients"]][["(Intercept)"]] + m2[["coefficients"]][["porc_precio"]]*10))))*100) %>% format(big.mark=",", decimal.mark=".", digits=3) `\%
+\item Price weighted 90\% [NOT MEAT]: the probability of a tender being contested under this scenario is `r ((1/(1 + exp(-1*(m2[["coefficients"]][["(Intercept)"]] + m2[["coefficients"]][["porc_precio"]]*90))))*100) %>% format(big.mark=",", decimal.mark=".", digits=3) `\%
+\end{itemize}
+
+\textsc{Conclusions:} This supports (or at least, does not reject) the Path 1 (see above), meaning that more rules (= scoring rules = MEAT) causes lost of \textsc{Trust}. Also, these results at least challenge the idea that "By setting a clear purpose for the improvement of procurement outcomes, SPP creates strong and specific use cases for increased transparency, participation and accountability."\footnote{Isabelle Adam, Mihály Fazekas, Conrad Zellmann, see \url{http://www.govtransparency.eu/wp-content/uploads/2021/04/Adam_Fazekas_Zellmann_Open-and-sustainable-procurement_discussion-paper.pdf}, p.12.} More research is needed in Chile, but also in different countries with different degrees of development.
+
+
+\newpage
+
+\section{Annex C: Possible Remedies}
+
+Governments have several instruments to advance in sustainability, not only by the use of tender criteria.
+
+Example: light bulbs in Chile. Since 2015\footnote{\url{https://www.t13.cl/radio/mesa-central/noticia/maximo-pacheco-partir-del-jueves-operara-decreto-prohibe-venta-ampolletas-incandescentes}} there's no other type of light bulbs than LED (or similar) in the market. Before that date, when government bought sustainable bulb lights (LED), there were complains concerning prices. Since that day, government can concentrate in obtaining the minimum price in the market, but all alternatives are sustainable.
+
+This type of solution (advance all the market to sustainable products) seems perfect to avoid suspicion from citizens and suppliers, since it avoids the use of multiple dimensions and posses again the competition on price.
+
+
+
